@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flappy Cube</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { display: flex; justify-content: center; align-items: center; height: 100vh; background: skyblue; }
+    canvas { background: linear-gradient(to top, #87ceeb, #e0f7ff); border: 3px solid #333; border-radius: 10px; }
+    #restartBtn {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      padding: 12px 20px; font-size: 18px; background: red; color: white; border: none; border-radius: 8px;
+      display: none; cursor: pointer;
+    }
+    #score {
+      position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+      font-size: 22px; font-family: Arial, sans-serif; font-weight: bold; color: black;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+  <div id="score">Score: 0</div>
+  <button id="restartBtn">Restart</button>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const restartBtn = document.getElementById("restartBtn");
+    const scoreDisplay = document.getElementById("score");
+
+    let player, obstacles, score, gameOver, gravity, lift, velocity, obstacleSpeed, cloudOffset;
+
+    function initGame() {
+      player = { x: 80, y: canvas.height/2, size: 30, color: "red" };
+      obstacles = [];
+      score = 0;
+      gameOver = false;
+      gravity = 0.35;   // smoother fall
+      lift = -6;      // stronger jump
+      velocity = 0;
+      obstacleSpeed = 2;
+      cloudOffset = 0;
+      restartBtn.style.display = "none";
+      loop();
+    }
+
+    function drawBackground() {
+      ctx.fillStyle = "#87ceeb";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Sun
+      ctx.fillStyle = "yellow";
+      ctx.beginPath();
+      ctx.arc(60, 60, 30, 0, Math.PI*2);
+      ctx.fill();
+
+      // Clouds
+      ctx.fillStyle = "white";
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.arc((i*150 + cloudOffset) % (canvas.width+150) - 50, 100, 25, 0, Math.PI*2);
+        ctx.arc((i*150 + cloudOffset) % (canvas.width+150) - 20, 110, 20, 0, Math.PI*2);
+        ctx.arc((i*150 + cloudOffset) % (canvas.width+150) - 80, 110, 20, 0, Math.PI*2);
+        ctx.fill();
+      }
+      cloudOffset += 0.3;
+    }
+
+    function drawPlayer() {
+      ctx.fillStyle = player.color;
+      ctx.fillRect(player.x, player.y, player.size, player.size);
+
+      // Eyes
+      ctx.fillStyle = "black";
+      ctx.beginPath(); ctx.arc(player.x+8, player.y+10, 3, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(player.x+22, player.y+10, 3, 0, Math.PI*2); ctx.fill();
+
+      // Mouth
+      if (!gameOver) {
+        ctx.beginPath();
+        ctx.arc(player.x+15, player.y+20, 8, 0, Math.PI, false); // smile
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.arc(player.x+15, player.y+28, 8, 0, Math.PI, true); // sad
+        ctx.stroke();
+      }
+    }
+
+    function drawObstacles() {
+      ctx.fillStyle = "green";
+      obstacles.forEach(obs => {
+        ctx.fillRect(obs.x, 0, obs.width, obs.top);
+        ctx.fillRect(obs.x, canvas.height - obs.bottom, obs.width, obs.bottom);
+      });
+    }
+
+    function update() {
+      velocity += gravity;
+      player.y += velocity;
+
+      if (player.y + player.size > canvas.height) {
+        gameOver = true;
+      }
+      if (player.y < 0) player.y = 0;
+
+      // Move obstacles
+      obstacles.forEach(obs => obs.x -= obstacleSpeed);
+
+      // Remove off-screen obstacles
+      if (obstacles.length && obstacles[0].x + obstacles[0].width < 0) {
+        obstacles.shift();
+        score++;
+        scoreDisplay.textContent = "Score: " + score;
+        if (score % 15 === 0) obstacleSpeed += 0.3; // speed up slowly
+      }
+
+      // Add new obstacle
+      if (!obstacles.length || obstacles[obstacles.length-1].x < canvas.width - 220) {
+        let gap = 200;  // bigger gap
+        let top = Math.random()* (canvas.height-gap-100) + 50;
+        obstacles.push({
+          x: canvas.width,
+          width: 60,
+          top: top,
+          bottom: canvas.height - top - gap
+        });
+      }
+
+      // Collision check
+      obstacles.forEach(obs => {
+        if (player.x < obs.x + obs.width &&
+            player.x + player.size > obs.x &&
+            (player.y < obs.top || player.y + player.size > canvas.height - obs.bottom)) {
+          gameOver = true;
+        }
+      });
+    }
+
+    function loop() {
+      if (gameOver) {
+        drawBackground();
+        drawObstacles();
+        drawPlayer();
+        restartBtn.style.display = "block";
+        return;
+      }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBackground();
+      update();
+      drawObstacles();
+      drawPlayer();
+      requestAnimationFrame(loop);
+    }
+
+    // Controls
+    window.addEventListener("keydown", e => { if (e.code === "Space") velocity = lift; });
+    window.addEventListener("mousedown", () => velocity = lift);
+    window.addEventListener("touchstart", () => velocity = lift);
+
+    restartBtn.addEventListener("click", initGame);
+
+    initGame();
+  </script>
+</body>
+</html>
